@@ -40,7 +40,9 @@ class ServiceProvider extends Base {
 
 			// Retrieve our configuration.
 			$config = $app['config'];
-			$connection = $config->get('laravel-doctrine::doctrine.connection');
+            
+			$connection = $this->getDatabaseConfig($config);
+
 			$devMode = $config->get('app.debug');
 
 			$cache = null; // Default, let Doctrine decide.
@@ -198,4 +200,25 @@ class ServiceProvider extends Base {
     );
 	}
 
+    /**
+     * Map Laravel's to Doctrine's database config
+     *
+     * @param $config
+     * @return array
+     */
+    private function getDatabaseConfig($config)
+    {
+        $default = $config['database.default'];
+        $database = $config["database.connections.{$default}"];
+        return [
+            'driver' => 'pdo_'.$database['driver'],
+            'host' => $database['host'],
+            'dbname' => $database['database'],
+            'user' => $database['username'],
+            'password' => $database['password'],
+            'prefix' => $database['prefix'],
+            'charset' => $database['charset'],
+            'port' => $database['port']
+        ];
+    }
 }

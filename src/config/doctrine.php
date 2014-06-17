@@ -4,28 +4,6 @@ return array(
 
 	/*
 	|--------------------------------------------------------------------------
-	| Database Connection
-	|--------------------------------------------------------------------------
-	|
-	| This array passes right through to the EntityManager factory.
-	|
-	| http://www.doctrine-project.org/documentation/manual/2_0/en/dbal
-	|
-	*/
-
-	'connection' => array(
-
-		'driver'    => 'pdo_mysql',
-		'user'		=> 'root',
-		'password'	=> '',
-		'dbname'	=> 'database',
-		'host'		=> 'localhost',
-		'prefix'	=> ''
-
-	),
-
-	/*
-	|--------------------------------------------------------------------------
 	| Metadata Sources
 	|--------------------------------------------------------------------------
 	|
