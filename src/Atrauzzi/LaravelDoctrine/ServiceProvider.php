@@ -92,14 +92,85 @@ class ServiceProvider extends Base {
 
 				}
 
-			}
+			} else {
+                $cache = new \Doctrine\Common\Cache\ArrayCache();
+            }
+            
+            //Gedmo doctrine extensions
+            $annotationReader = new \Doctrine\Common\Annotations\AnnotationReader;
+            $cachedAnnotationReader = new \Doctrine\Common\Annotations\CachedReader(
+                $annotationReader, // use reader
+                $cache // and a cache driver
+            );
+            // create a driver chain for metadata reading
+            $driverChain = new \Doctrine\ORM\Mapping\Driver\DriverChain();
+            // load superclass metadata mapping only, into driver chain
+            // also registers Gedmo annotations.NOTE: you can personalize it
+            \Gedmo\DoctrineExtensions::registerAbstractMappingIntoDriverChainORM(
+                $driverChain, // our metadata driver chain, to hook into
+                $cachedAnnotationReader // our cached annotation reader
+            );
 
-			$doctrine_config = Setup::createAnnotationMetadataConfiguration(
-				$config->get('laravel-doctrine::doctrine.metadata'),
-				$devMode,
-				$config->get('laravel-doctrine::doctrine.proxy_classes.directory'),
-				$cache
-			);
+            // now we want to register our application entities,
+            // for that we need another metadata driver used for Entity namespace
+            $annotationDriver = new \Doctrine\ORM\Mapping\Driver\AnnotationDriver(
+                $cachedAnnotationReader, // our cached annotation reader
+                $config->get('laravel-doctrine::doctrine.metadata') // paths to look in
+            );
+            // NOTE: driver for application Entity can be different, Yaml, Xml or whatever
+            // register annotation driver for our application Entity namespace
+            $driverChain->addDriver($annotationDriver, 'Entity');
+
+            // general ORM configuration
+            $doctrine_config = new \Doctrine\ORM\Configuration;
+            // register metadata driver
+            $doctrine_config->setMetadataDriverImpl($driverChain);
+            // use our already initialized cache driver
+            $doctrine_config->setMetadataCacheImpl($cache);
+            $doctrine_config->setQueryCacheImpl($cache);
+
+            // create event manager and hook preferred extension listeners
+            $evm = new \Doctrine\Common\EventManager();
+            // gedmo extension listeners, remove which are not used
+            /*
+            // sluggable
+            $sluggableListener = new Gedmo\Sluggable\SluggableListener;
+            // you should set the used annotation reader to listener, to avoid creating new one for mapping drivers
+            $sluggableListener->setAnnotationReader($cachedAnnotationReader);
+            $evm->addEventSubscriber($sluggableListener);
+
+
+            // tree
+            $treeListener = new Gedmo\Tree\TreeListener;
+            $treeListener->setAnnotationReader($cachedAnnotationReader);
+            $evm->addEventSubscriber($treeListener);
+            // loggable, not used in example
+            $loggableListener = new Gedmo\Loggable\LoggableListener;
+            $loggableListener->setAnnotationReader($cachedAnnotationReader);
+            $evm->addEventSubscriber($loggableListener);
+
+            // sortable, not used in example
+            $sortableListener = new Gedmo\Sortable\SortableListener;
+            $sortableListener->setAnnotationReader($cachedAnnotationReader);
+            $evm->addEventSubscriber($sortableListener);
+
+            */
+
+            // timestampable
+            $timestampableListener = new \Gedmo\Timestampable\TimestampableListener;
+            $timestampableListener->setAnnotationReader($cachedAnnotationReader);
+            $evm->addEventSubscriber($timestampableListener);
+
+            // translatable
+            $translatableListener = new \Gedmo\Translatable\TranslatableListener;
+            // current translation locale should be set from session or hook later into the listener
+            // most important, before entity manager is flushed
+            $translatableListener->setTranslatableLocale($app->getLocale());
+            $translatableListener->setDefaultLocale($config->get('app.locale'));
+
+            $translatableListener->setAnnotationReader($cachedAnnotationReader);
+            $evm->addEventSubscriber($translatableListener);
+
 
 			$doctrine_config->setAutoGenerateProxyClasses(
 				$config->get('laravel-doctrine::doctrine.proxy_classes.auto_generate')
@@ -113,6 +184,7 @@ class ServiceProvider extends Base {
 			if ($proxy_class_namespace !== null) {
 				$doctrine_config->setProxyNamespace($proxy_class_namespace);
 			}
+            $doctrine_config->setProxyDir('laravel-doctrine::doctrine.proxy_classes.directory');
 
 			// Trap doctrine events, to support entity table prefix
 			$evm = new EventManager();

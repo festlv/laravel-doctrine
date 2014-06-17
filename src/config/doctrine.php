@@ -13,7 +13,7 @@ return array(
 	|
 	*/
 	'metadata' => array(
-		__DIR__.'/../../../../../app/models'
+		app_path().'/models'
 	),
 
 	/*
@@ -27,8 +27,8 @@ return array(
 	*/
 	'proxy_classes' => array(
 		'auto_generate' => false,
-		'directory' => null,
-		'namespace' => null,
+		'directory' => sys_get_temp_dir(),
+		'namespace' => 'Proxy',
 	),
  
  	/*
