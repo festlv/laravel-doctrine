@@ -164,7 +164,7 @@ class ServiceProvider extends Base {
 			if ($proxy_class_namespace !== null) {
 				$doctrine_config->setProxyNamespace($proxy_class_namespace);
 			}
-            $doctrine_config->setProxyDir('laravel-doctrine::doctrine.proxy_classes.directory');
+            $doctrine_config->setProxyDir($config->get('laravel-doctrine::doctrine.proxy_classes.directory'));
 
 			if (isset($connection['prefix']) && !empty($connection['prefix'])) {
 				$evm->addEventListener(Events::loadClassMetadata, new Listener\Metadata\TablePrefix($connection['prefix']));
