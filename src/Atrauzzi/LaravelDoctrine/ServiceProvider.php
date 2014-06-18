@@ -7,6 +7,8 @@ use Doctrine\ORM\Events;
 use Doctrine\ORM\EntityManager;
 
 
+use Knp\DoctrineBehaviors\Reflection\ClassAnalyzer;
+
 class ServiceProvider extends Base {
 
 	/**
@@ -95,8 +97,10 @@ class ServiceProvider extends Base {
 			} else {
                 $cache = new \Doctrine\Common\Cache\ArrayCache();
             }
+            \Doctrine\Common\Annotations\AnnotationRegistry::registerFile(
+                base_path().'/vendor/doctrine/orm/lib/Doctrine/ORM/Mapping/Driver/DoctrineAnnotations.php'
+            );        
             
-            //Gedmo doctrine extensions
             $annotationReader = new \Doctrine\Common\Annotations\AnnotationReader;
             $cachedAnnotationReader = new \Doctrine\Common\Annotations\CachedReader(
                 $annotationReader, // use reader
@@ -104,12 +108,6 @@ class ServiceProvider extends Base {
             );
             // create a driver chain for metadata reading
             $driverChain = new \Doctrine\ORM\Mapping\Driver\DriverChain();
-            // load superclass metadata mapping only, into driver chain
-            // also registers Gedmo annotations.NOTE: you can personalize it
-            \Gedmo\DoctrineExtensions::registerAbstractMappingIntoDriverChainORM(
-                $driverChain, // our metadata driver chain, to hook into
-                $cachedAnnotationReader // our cached annotation reader
-            );
 
             // now we want to register our application entities,
             // for that we need another metadata driver used for Entity namespace
@@ -119,7 +117,7 @@ class ServiceProvider extends Base {
             );
             // NOTE: driver for application Entity can be different, Yaml, Xml or whatever
             // register annotation driver for our application Entity namespace
-            $driverChain->addDriver($annotationDriver, 'Entity');
+            $driverChain->addDriver($annotationDriver, "Entity");
 
             // general ORM configuration
             $doctrine_config = new \Doctrine\ORM\Configuration;
@@ -131,51 +129,33 @@ class ServiceProvider extends Base {
 
             // create event manager and hook preferred extension listeners
             $evm = new \Doctrine\Common\EventManager();
-            // gedmo extension listeners, remove which are not used
-            /*
-            // sluggable
-            $sluggableListener = new Gedmo\Sluggable\SluggableListener;
-            // you should set the used annotation reader to listener, to avoid creating new one for mapping drivers
-            $sluggableListener->setAnnotationReader($cachedAnnotationReader);
-            $evm->addEventSubscriber($sluggableListener);
-
-
-            // tree
-            $treeListener = new Gedmo\Tree\TreeListener;
-            $treeListener->setAnnotationReader($cachedAnnotationReader);
-            $evm->addEventSubscriber($treeListener);
-            // loggable, not used in example
-            $loggableListener = new Gedmo\Loggable\LoggableListener;
-            $loggableListener->setAnnotationReader($cachedAnnotationReader);
-            $evm->addEventSubscriber($loggableListener);
-
-            // sortable, not used in example
-            $sortableListener = new Gedmo\Sortable\SortableListener;
-            $sortableListener->setAnnotationReader($cachedAnnotationReader);
-            $evm->addEventSubscriber($sortableListener);
-
-            */
-
-            // timestampable
-            $timestampableListener = new \Gedmo\Timestampable\TimestampableListener;
-            $timestampableListener->setAnnotationReader($cachedAnnotationReader);
-            $evm->addEventSubscriber($timestampableListener);
-
-            // translatable
-            $translatableListener = new \Gedmo\Translatable\TranslatableListener;
-            // current translation locale should be set from session or hook later into the listener
-            // most important, before entity manager is flushed
-            $translatableListener->setTranslatableLocale($app->getLocale());
-            $translatableListener->setDefaultLocale($config->get('app.locale'));
-
-            $translatableListener->setAnnotationReader($cachedAnnotationReader);
-            $evm->addEventSubscriber($translatableListener);
-
-
-			$doctrine_config->setAutoGenerateProxyClasses(
+            $doctrine_config->setAutoGenerateProxyClasses(
 				$config->get('laravel-doctrine::doctrine.proxy_classes.auto_generate')
-			);
-
+            );
+            $evm->addEventSubscriber(new \Knp\DoctrineBehaviors\ORM\Translatable\TranslatableListener(
+                new ClassAnalyzer(),
+                false,
+                function()
+                {
+                    return \App::getLocale();
+                },
+                'Knp\DoctrineBehaviors\Model\Translatable\Translatable',
+                'Knp\DoctrineBehaviors\Model\Translatable\Translation',
+                'LAZY',
+                'LAZY'
+            ));
+            $evm->addEventSubscriber(
+                new \Knp\DoctrineBehaviors\ORM\Timestampable\TimestampableListener(
+                    new ClassAnalyzer(),
+                    true,
+                    'Knp\DoctrineBehaviors\Model\Timestampable\Timestampable'
+                ));
+            $evm->addEventSubscriber(
+                new \Knp\DoctrineBehaviors\ORM\SoftDeletable\SoftDeletableListener(
+                    new ClassAnalyzer(),
+                    true,
+                    'Knp\DoctrineBehaviors\Model\SoftDeletable\SoftDeletable'
+                ));
             $doctrine_config->setDefaultRepositoryClassName($config->get('laravel-doctrine::doctrine.defaultRepository'));
 
             $doctrine_config->setSQLLogger($config->get('laravel-doctrine::doctrine.sqlLogger'));
@@ -185,9 +165,6 @@ class ServiceProvider extends Base {
 				$doctrine_config->setProxyNamespace($proxy_class_namespace);
 			}
             $doctrine_config->setProxyDir('laravel-doctrine::doctrine.proxy_classes.directory');
-
-			// Trap doctrine events, to support entity table prefix
-			$evm = new EventManager();
 
 			if (isset($connection['prefix']) && !empty($connection['prefix'])) {
 				$evm->addEventListener(Events::loadClassMetadata, new Listener\Metadata\TablePrefix($connection['prefix']));
@@ -280,17 +257,8 @@ class ServiceProvider extends Base {
      */
     private function getDatabaseConfig($config)
     {
-        $default = $config['database.default'];
-        $database = $config["database.connections.{$default}"];
         return [
-            'driver' => 'pdo_'.$database['driver'],
-            'host' => $database['host'],
-            'dbname' => $database['database'],
-            'user' => $database['username'],
-            'password' => $database['password'],
-            'prefix' => $database['prefix'],
-            'charset' => $database['charset'],
-            'port' => $database['port']
+            'pdo' => \DB::connection()->getPdo()
         ];
     }
 }
