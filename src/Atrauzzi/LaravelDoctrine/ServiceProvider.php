@@ -158,8 +158,7 @@ class ServiceProvider extends Base {
                 ));
             $doctrine_config->setDefaultRepositoryClassName($config->get('laravel-doctrine::doctrine.defaultRepository'));
             
-            if (\Debugbar::hasCollector('queries'))
-                $doctrine_config->setSQLLogger($config->get('laravel-doctrine::doctrine.sqlLogger'));
+            $doctrine_config->setSQLLogger($config->get('laravel-doctrine::doctrine.sqlLogger'));
 
 			$proxy_class_namespace = $config->get('laravel-doctrine::doctrine.proxy_classes.namespace');
 			if ($proxy_class_namespace !== null) {
