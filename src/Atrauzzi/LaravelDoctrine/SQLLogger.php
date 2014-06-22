@@ -30,9 +30,11 @@ class SQLLogger implements ISQLLogger {
      * @return void
      */
     public function stopQuery() {
-        $col = \Debugbar::getCollector('queries');
-        $delta_time = (microtime(true) - $this->start_time) * 1000;
-        $col->addQuery($this->query, $this->params, $delta_time, \DB::connection()); 
+        if (\Debugbar::hasCollector('queries')) {
+            $col = \Debugbar::getCollector('queries');
+            $delta_time = (microtime(true) - $this->start_time) * 1000;
+            $col->addQuery($this->query, $this->params, $delta_time, \DB::connection()); 
+        }
         
     }
 
