@@ -20,6 +20,8 @@ class SQLLogger implements ISQLLogger {
     public function startQuery($sql, array $params = null, array $types = null) {
         $this->start_time = microtime(true);
         $this->query = $sql;
+        if ($params === null)
+            $params = [];
         $this->params = $params;
 
     }
